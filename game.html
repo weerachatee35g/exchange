@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เกมจับคู่แผ่นป้ายอิโมจิ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #74ebd5, #acb6e5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            text-align: center;
+            padding: 20px;
+        }
+
+        header {
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .rules {
+            font-size: 1.2rem;
+            color: #fff;
+            margin-top: 10px;
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(4, 100px);
+            grid-gap: 15px;
+            justify-content: center;
+            max-width: 460px;
+            margin: 0 auto;
+        }
+
+        .card {
+            width: 100px;
+            height: 100px;
+            background: #fff;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s, background 0.3s;
+        }
+
+        .card.flipped, .card.matched {
+            background: #74ebd5;
+            transform: rotateY(180deg);
+        }
+
+        .card.matched {
+            background: #acb6e5;
+        }
+
+        .stats {
+            margin: 30px 0;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .stats p {
+            font-size: 1.2rem;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            background: #fff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transition: background 0.3s;
+        }
+
+        button:hover:not(:disabled) {
+            background: #e0e0e0;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        @media (max-width: 480px) {
+            .game-board {
+                grid-template-columns: repeat(3, 80px);
+                grid-gap: 10px;
+            }
+            .card {
+                width: 80px;
+                height: 80px;
+                font-size: 1.5rem;
+            }
+            h1 {
+                font-size: 2rem;
+            }
+            .rules {
+                font-size: 1rem;
+            }
+            .stats {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>เกมจับคู่แผ่นป้ายอิโมจิ</h1>
+            <p class="rules">กติกา: คลิก "เริ่มเล่น" เพื่อเริ่มจับเวลา คุณต้องจับคู่ให้ครบ 6 คู่ภายใน 40 วินาที!</p>
+        </header>
+        <div class="stats">
+            <p>จำนวนครั้งที่คลิก: <span id="moves">0</span></p>
+            <p>เวลา: <span id="timer">40</span> วินาที</p>
+            <button id="startButton">เริ่มเล่น</button>
+            <button id="resetButton" disabled>เริ่มใหม่</button>
+        </div>
+        <div class="game-board" id="gameBoard">
+            <!-- แผ่นป้ายจะถูกสร้างด้วย JavaScript -->
+        </div>
+    </div>
+
+    <script>
+        // อิโมจิ 6 คู่ (12 แผ่นป้าย)
+        const emojis = ['😺', '🐶', '🐰', '🦊', '🐻', '🐼', '😺', '🐶', '🐰', '🦊', '🐻', '🐼'];
+        let flippedCards = [];
+        let matchedCards = [];
+        let moves = 0;
+        let timeLeft = 40;
+        let timerInterval = null;
+
+        const gameBoard = document.getElementById('gameBoard');
+        const movesDisplay = document.getElementById('moves');
+        const timerDisplay = document.getElementById('timer');
+        const startButton = document.getElementById('startButton');
+        const resetButton = document.getElementById('resetButton');
+
+        // สับไพ่แบบสุ่ม
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // สร้างแผ่นป้าย
+        function createBoard() {
+            gameBoard.innerHTML = '';
+            const shuffledEmojis = shuffle([...emojis]);
+            shuffledEmojis.forEach(emoji => {
+                const card = document.createElement('div');
+                card.classList.add('card');
+                card.dataset.emoji = emoji;
+                card.addEventListener('click', flipCard);
+                gameBoard.appendChild(card);
+            });
+        }
+
+        // เริ่มตัวจับเวลา
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerDisplay.textContent = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    endGame(false);
+                }
+            }, 1000);
+        }
+
+        // พลิกแผ่นป้าย
+        function flipCard() {
+            if (timerInterval === null) return; // ไม่ให้คลิกก่อนเริ่ม
+            if (flippedCards.length < 2 && !this.classList.contains('flipped') && !this.classList.contains('matched')) {
+                this.classList.add('flipped');
+                this.textContent = this.dataset.emoji;
+                flippedCards.push(this);
+                moves++;
+                movesDisplay.textContent = moves;
+
+                if (flippedCards.length === 2) {
+                    checkMatch();
+                }
+            }
+        }
+
+        // ตรวจสอบการจับคู่
+        function checkMatch() {
+            const [card1, card2] = flippedCards;
+            if (card1.dataset.emoji === card2.dataset.emoji) {
+                card1.classList.add('matched');
+                card2.classList.add('matched');
+                matchedCards.push(card1, card2);
+                flippedCards = [];
+                if (matchedCards.length === emojis.length) {
+                    clearInterval(timerInterval);
+                    endGame(true);
+                }
+            } else {
+                setTimeout(() => {
+                    card1.classList.remove('flipped');
+                    card2.classList.remove('flipped');
+                    card1.textContent = '';
+                    card2.textContent = '';
+                    flippedCards = [];
+                }, 1000);
+            }
+        }
+
+        // จบเกม
+        function endGame(won) {
+            setTimeout(() => {
+                if (won) {
+                    alert(`ยินดีด้วย! คุณชนะใน ${moves} ครั้ง โดยใช้เวลา ${40 - timeLeft} วินาที`);
+                } else {
+                    alert('แพ้! เวลาหมด คุณจับคู่ได้ไม่ครบ');
+                }
+                resetGame();
+            }, 500);
+        }
+
+        // รีเซ็ตเกม
+        function resetGame() {
+            flippedCards = [];
+            matchedCards = [];
+            moves = 0;
+            timeLeft = 40;
+            movesDisplay.textContent = moves;
+            timerDisplay.textContent = timeLeft;
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = null;
+            startButton.disabled = false;
+            resetButton.disabled = true;
+            createBoard();
+        }
+
+        // เริ่มเกม
+        function startGame() {
+            resetGame();
+            startButton.disabled = true;
+            resetButton.disabled = false;
+            startTimer();
+        }
+
+        // โหลดบอร์ดเริ่มต้น
+        createBoard();
+
+        // ปุ่มเริ่มและรีเซ็ต
+        startButton.addEventListener('click', startGame);
+        resetButton.addEventListener('click', resetGame);
+    </script>
+</body>
+</html>
